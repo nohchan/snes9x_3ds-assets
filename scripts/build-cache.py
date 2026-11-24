@@ -29,12 +29,14 @@ import struct
 import subprocess
 import sys
 import tempfile
+import unicodedata
+
 from pathlib import Path
 
 DEFAULT_OUTPUT_DIR = os.path.join("dist", "thumbnails")
 
 # Keep in sync with thumbMaxCount in 3dsui_img.cpp.
-MAX_ENTRIES = 1024
+MAX_ENTRIES = 1500
 
 _BUNDLED_FONT = Path(__file__).resolve().with_name("Minecraftia.ttf")
 PREVIEW_FONT = str(_BUNDLED_FONT) if _BUNDLED_FONT.exists() else None
@@ -49,16 +51,18 @@ CACHE_INDEX_ENTRY_SIZE = 12
 THUMB_BOX = 128
 
 def compute_game_id(name):
+    normalized = unicodedata.normalize("NFC", name)
     hash_val = 5381
-    for char in name:
-        hash_val = ((hash_val << 5) + hash_val) + ord(char)
+    for byte in normalized.encode("utf-8"):
+        hash_val = ((hash_val << 5) + hash_val) + byte
         hash_val = hash_val & 0xFFFFFFFF
     return hash_val
 
 def trim_name(filename):
-    clean_name = os.path.splitext(filename)[0]
+    clean_name = unicodedata.normalize("NFC", os.path.splitext(filename)[0])
+    brackets = ("(", "[", "（", "［")
     cut = min(
-        (clean_name.index(c) for c in ("(", "[") if c in clean_name),
+        (clean_name.index(c) for c in brackets if c in clean_name),
         default=len(clean_name)
     )
     return clean_name[:cut].strip()
@@ -114,7 +118,7 @@ def source_sizes(files, chunk=200):
         batch = files[start:start + chunk]
         result = subprocess.run(
             ["magick", "identify", "-format", "%w %h %i\n", *[str(p) for p in batch]],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding='utf-8', errors='replace',
         )
         for line in result.stdout.splitlines():
             width, height, name = line.split(" ", 2)
@@ -162,7 +166,7 @@ def get_raw_pixels(cmd, filepath):
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         raw_data, stderr = process.communicate()
         if process.returncode != 0:
-            print(f"  [Error] {filepath}: {stderr.decode().strip()}")
+            print(f"  [Error] {filepath}: {stderr.decode('utf-8', errors='replace').strip()}")
             return None
         return raw_data
     except FileNotFoundError:
@@ -207,7 +211,7 @@ def generate_labeled_tile(args):
         process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         _, stderr = process.communicate(input=rgb_data)
         if process.returncode != 0:
-            print(f"  [Tile Error] {name}: {stderr.decode().strip()}")
+            print(f"  [Tile Error] {name}: {stderr.decode('utf-8', errors='replace').strip()}")
     except Exception as e:
         print(f"  [Tile Error] {name}: {e}")
 
@@ -230,7 +234,7 @@ def run_montage(tile_files, output_file, columns):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     _, stderr = process.communicate()
     if process.returncode != 0:
-        print(f"  [Preview Error] {stderr.decode().strip()}")
+        print(f"  [Preview Error] {stderr.decode('utf-8', errors='replace').strip()}")
         return False
     return True
 
@@ -286,7 +290,7 @@ def create_preview_atlas(tiles, output_file, font_path=None):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             _, stderr = process.communicate()
             if process.returncode != 0:
-                print(f"  [Preview Error] {stderr.decode().strip()}")
+                print(f"  [Preview Error] {stderr.decode('utf-8', errors='replace').strip()}")
                 return
 
         print(f"  [Preview] Saved to {os.path.abspath(output_file)}")
