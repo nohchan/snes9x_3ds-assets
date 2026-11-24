@@ -3,9 +3,9 @@
 ここは、matbo87さんが作成してくれた「snes9x_3ds-assets」を自分用にカスタマイズする場所です。
 
 
-## 現在対応したいこと
-* 日本語ファイル同士で「cover_japan-style.cache」や「title.cache」を作りたい
-* 数も1500ファイルに対応したい
+## 現在対応したこと
+* 日本語ファイル同士で「cover_japan-style.cache」や「title.cache」を作れるようにした
+* 数も1500ファイルに対応した
 
 
 
